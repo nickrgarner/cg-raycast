@@ -111,7 +111,7 @@ function getInputEllipsoids() {
         console.log*("Unable to open input ellipses file!");
         return String.null;
     } else
-        return JSON.parse(httpReq.response); 
+        return JSON.parse(httpReq.response);
 } // end get input ellipsoids
 
 // put random points in the ellipsoids from the class github
@@ -166,6 +166,67 @@ function drawRandPixelsInInputEllipsoids(context) {
         context.putImageData(imagedata, 0, 0);
     } // end if ellipsoids found
 } // end draw rand pixels in input ellipsoids
+
+function raycastEllipsoids(context) {
+    // Get input, setup canvas
+    var input = getInputEllipsoids();
+    var wcanvas = context.canvas.width;
+    var hcanvas = context.canvas.height;
+    var imagedata = context.createImageData(wcanvas,hcanvas);
+    const PIXEL_DENSITY = 0.1;
+    var numCanvasPixels = (wcanvas*hcanvas)*PIXEL_DENSITY;
+
+    // Eye/view coords
+    var eye = {x:0.5, y:0.5, z:-0.5};
+    var lookup = {x:0, y:1, z:0};
+    var lookat = {x:0, y:0, z:1};
+
+    // Check for empty input
+    if (input != String.null) {
+        // Iterate through pixels in canvas
+        for ( var x = 0; x < wcanvas; x++ ) {
+            for ( var y = 0; y < hcanvas; y++ ) {
+                // Init color
+                var color = new Color(0,0,0,0);
+
+                // Calculate ray eye -> pixel
+                var xWorld = x / wcanvas;
+                var yWorld = y / hcanvas;
+                var zWorld = 0;
+                var ray = {x:xWorld - eye.x, y:yWorld - eye.y, z:zWorld - eye.z};
+                
+                var closestEll = null; // Closest intersecting ellipse
+                var closestDist = -1; // Distance to closest ellipse
+                // Check each ellipse for intersection
+                for ( var i = 0; i < input.length; i++ ) {
+                    ellipse = input[ i ];
+                    // Check intersection, update closest ellipse if appropriate
+                    var distToEll = checkInteraction( ellipse, ray);
+                    if ( distToEll != -1 && distToEll < closestDist ) {
+                        closestDist = distToEll;
+                        closestEll = ellipse;
+                    }
+                }
+                if ( !closestEll ) { // No intersection
+                    drawPixel( imagedata, x, y, color );
+                } else { // Use color of closest ellipse
+                    color.change (
+                        closestEll.diffuse[0] * 255,
+                        closestEll.diffuse[1] * 255,
+                        closestEll.diffuse[2] * 255,
+                        255); // Ellipsoid diffuse color
+                    drawPixel( imagedata, x, y, color );
+                }
+            }
+        }
+        context.putImageData( imagedata, 0, 0 );
+    }
+}
+
+// Returns distance if ray intersects ellipse, -1 otherwise
+function checkInteraction( ellipse, ray ) {
+    
+}
 
 /* main -- here is where execution begins after window load */
 
