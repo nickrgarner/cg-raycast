@@ -117,59 +117,6 @@ function getInputEllipsoids() {
         return JSON.parse(httpReq.response);
 } // end get input ellipsoids
 
-// put random points in the ellipsoids from the class github
-function drawRandPixelsInInputEllipsoids(context) {
-    var inputEllipsoids = getInputEllipsoids();
-    var w = context.canvas.width;
-    var h = context.canvas.height;
-    var imagedata = context.createImageData(w,h);
-    const PIXEL_DENSITY = 0.1;
-    var numCanvasPixels = (w*h)*PIXEL_DENSITY; 
-    
-    if (inputEllipsoids != String.null) { 
-        var x = 0; var y = 0; // pixel coord init
-        var cx = 0; var cy = 0; // init center x and y coord
-        var ellipsoidXRadius = 0; // init ellipsoid x radius
-        var ellipsoidYRadius = 0; // init ellipsoid y radius
-        var numEllipsoidPixels = 0; // init num pixels in ellipsoid
-        var c = new Color(0,0,0,0); // init the ellipsoid color
-        var n = inputEllipsoids.length; // the number of input ellipsoids
-        //console.log("number of ellipses: " + n);
-
-        // Loop over the ellipsoids, draw rand pixels in each
-        for (var e=0; e<n; e++) {
-            cx = w*inputEllipsoids[e].x; // ellipsoid center x
-            cy = h*inputEllipsoids[e].y; // ellipsoid center y
-            ellipsoidXRadius = Math.round(w*inputEllipsoids[e].a); // x radius
-            ellipsoidYRadius = Math.round(h*inputEllipsoids[e].b); // y radius
-            numEllipsoidPixels = ellipsoidXRadius*ellipsoidYRadius*Math.PI; // projected ellipsoid area
-            numEllipsoidPixels *= PIXEL_DENSITY; // percentage of ellipsoid area to render to pixels
-            numEllipsoidPixels = Math.round(numEllipsoidPixels);
-            //console.log("ellipsoid x radius: "+ellipsoidXRadius);
-            //console.log("ellipsoid y radius: "+ellipsoidYRadius);
-            //console.log("num ellipsoid pixels: "+numEllipsoidPixels);
-            c.change(
-                inputEllipsoids[e].diffuse[0]*255,
-                inputEllipsoids[e].diffuse[1]*255,
-                inputEllipsoids[e].diffuse[2]*255,
-                255); // ellipsoid diffuse color
-            for (var p=0; p<numEllipsoidPixels; p++) {
-                do {
-                    x = Math.random()*2 - 1; // in unit square 
-                    y = Math.random()*2 - 1; // in unit square
-                } while (Math.sqrt(x*x + y*y) > 1) // a circle is also an ellipse
-                drawPixel(imagedata,
-                    cx+Math.round(x*ellipsoidXRadius),
-                    cy+Math.round(y*ellipsoidYRadius),c);
-                //console.log("color: ("+c.r+","+c.g+","+c.b+")");
-                //console.log("x: "+Math.round(w*inputEllipsoids[e].x));
-                //console.log("y: "+Math.round(h*inputEllipsoids[e].y));
-            } // end for pixels in ellipsoid
-        } // end for ellipsoids
-        context.putImageData(imagedata, 0, 0);
-    } // end if ellipsoids found
-} // end draw rand pixels in input ellipsoids
-
 function raycastEllipsoids(context) {
     // Get input, setup canvas
     var input = getInputEllipsoids();
