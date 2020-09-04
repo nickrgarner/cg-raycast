@@ -124,40 +124,41 @@ function raycastEllipsoids(context) {
     var hcanvas = context.canvas.height;
     var imagedata = context.createImageData(wcanvas,hcanvas);
     const PIXEL_DENSITY = 0.1;
-    var numCanvasPixels = (wcanvas*hcanvas)*PIXEL_DENSITY;
+    var numCanvasPixels = (wcanvas * hcanvas) * PIXEL_DENSITY;
 
     // Eye/view coords
     var eye = {x:0.5, y:0.5, z:-0.5};
     var lookup = {x:0, y:1, z:0};
     var lookat = {x:0, y:0, z:1};
 
+    // Init color
+    var color = new Color(0,0,0,0);
+
     // Check for empty input
     if (input != String.null) {
         // Iterate through pixels in canvas
         for ( var x = 0; x < wcanvas; x++ ) {
             for ( var y = 0; y < hcanvas; y++ ) {
-                // Init color
-                var color = new Color(0,0,0,0);
-
-                // Calculate D = P - E
-                var xWorld = x / wcanvas;
-                var yWorld = y / hcanvas;
-                var zWorld = 0;
-                var D = {x:xWorld - eye.x, y:yWorld - eye.y, z:zWorld - eye.z};
+                color.change( 0, 0, 0, 0 ); // Reset color
                 
                 var closestEll = null; // Closest intersecting ellipse
                 var closestDist = -1; // Distance to closest ellipse
+
                 // Check each ellipse for intersection
                 for ( var i = 0; i < input.length; i++ ) {
                     ellipse = input[ i ];
                     // Check intersection, update closest ellipse if appropriate
-                    var distToEll = checkInteraction( ellipse, {x: x, y: y, z: 0 }, eye );
-                    if ( distToEll != -1 && distToEll < closestDist ) {
-                        closestDist = distToEll;
-                        closestEll = ellipse;
+                    var distToEll = checkIntersection( ellipse,
+                                    {x: x, y: y, z: 0 }, eye, 
+                                    wcanvas, hcanvas );
+                    if ( distToEll != null && distToEll > 0 ) {
+                        if ( closestDist == -1 || distToEll < closestDist ) {
+                            closestDist = distToEll;
+                            closestEll = ellipse;
+                        }
                     }
                 }
-                if ( !closestEll ) { // No intersection
+                if ( !closestEll ) { // No intersection, use default color
                     drawPixel( imagedata, x, y, color );
                 } else { // Use color of closest ellipse
                     color.change (
@@ -173,25 +174,33 @@ function raycastEllipsoids(context) {
     }
 }
 
-// Returns distance if ray intersects ellipse, -1 otherwise
-function checkInteraction( ellipse, pixel, eye ) {
-    // Get canvas pixel ranges
-    wcanvas = context.canvas.width;
-    hcanvas = context.canvas.height;
+// Returns distance if ray intersects ellipse, null otherwise
+function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
+    // Calculate discriminant of quadratic equation: sqrt( b^2 - 4ac )
+    // a = dot( D/A, D/A ), b = 2 * dot( D/A, E - C )
+    // c = dot( (E-C)/A, (E-C)/A ) - 1
 
-    // Calculate discriminant of quadratic equation
-    var D = { x: pixel.x - eye.x, y: pixel.y - eye.y, z: pixel.z - eye.z };
-    var DdivA = { x: D.x / ellipse.a, y: D.y / ellipse.b, z: D.z / ellipse.c };
+    // a term
+    var D = { 
+        x: pixel.x / wcanvas - eye.x,
+        y: pixel.y / hcanvas - eye.y,
+        z: pixel.z - eye.z };
+    var DdivA = norm( { 
+        x: D.x / ellipse.a,
+        y: D.y / ellipse.b,
+        z: D.z / ellipse.c } );
     var quadraticA = dot( DdivA, DdivA );
 
-    var cx = wcanvas * ellipse.x;
-    var cy = hcanvas * ellipse.y;
+    // b and c terms
+    var cx = ellipse.x;
+    var cy = ellipse.y;
     var cz = 0;
-    var ElessCdivA = {
+    var ElessCdivA = norm ( {
         x: ( eye.x - cx ) / ellipse.a,
         y: ( eye.y - cy ) / ellipse.b,
-        z: ( eye.z - cz ) / ellipse.c };
-    var quadraticB = dot( 2 * DdivA, ElessCdivA );
+        z: ( eye.z - cz ) / ellipse.c } );
+    var doubleDdivA = { x: 2 * DdivA.x, y: 2 * DdivA.y, z: 2 * DdivA.z };
+    var quadraticB = dot( doubleDdivA, ElessCdivA );
     var quadraticC = dot( ElessCdivA, ElessCdivA ) - 1;
 
     var discriminant = Math.pow( quadraticB, 2 ) - 4 * quadraticA * quadraticC;
@@ -199,17 +208,25 @@ function checkInteraction( ellipse, pixel, eye ) {
     var intersection = 0;
 
     if ( discriminant < 0 ) { // No intersection
-        return -1;
+        return null;
     } else if ( discriminant == 0 ) { // One intersection
         t = -1 * quadraticB / ( 2 * quadraticA );
-        intersection = { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t }
     } else { // Two intersections
-        t = ( -1 * quadraticB - Math.sqrt( discriminant ) ) / ( 2 * quadraticA );
-        if ( t < 1 ) { // Behind eye, try other t
-            t = ( -1 * quadraticB + Math.sqrt( discriminant ) ) / ( 2 * quadraticA );
+        var t1 = ( -1 * quadraticB - Math.sqrt( discriminant ) ) / ( 2 * quadraticA );
+        var t2 = ( -1 * quadraticB + Math.sqrt( discriminant ) ) / ( 2 * quadraticA );
+        // Use closest root greater than zero
+        if ( t1 > 0 && t2 > 0 ) {
+            t = Math.min( t1, t2 );
+        } else if ( t1 < 0 ) {
+            t = t2;
+        } else {
+            t = t1;
         }
-        intersection = { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t}
     }
+
+    // Calculate intersection point
+    intersection = { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t}
+
     // Return distance from pixel to intersection
     return Math.sqrt(
         Math.pow( intersection.x - pixel.x, 2 ) +
@@ -222,6 +239,12 @@ function dot( vec1, vec2 ) {
     return vec1.x * vec2.x + vec1.y * vec2.y + vec1.z * vec2.z;
 }
 
+// Returns normalized copy of input vector
+function norm( vec1 ) {
+    var magnitude = Math.sqrt( Math.pow( vec1.x, 2 ) + Math.pow( vec1.y, 2 ) + Math.pow( vec1.z, 2 ) );
+    return { x: vec1.x / magnitude, y: vec1.y / magnitude, z: vec1.z / magnitude };
+}
+
 /* main -- here is where execution begins after window load */
 
 function main() {
@@ -231,26 +254,5 @@ function main() {
     var context = canvas.getContext("2d");
  
     // Create the image
-    //drawRandPixels(context);
-      // shows how to draw pixels
-
     raycastEllipsoids( context );
-    
-    // drawRandPixelsInInputEllipsoids(context);
-      // shows how to draw pixels and read input file
-      
-    //drawInputEllipsoidsUsingArcs(context);
-      // shows how to read input file, but not how to draw pixels
-    
-    //drawRandPixelsInInputTriangles(context);
-      // shows how to draw pixels and read input file
-    
-    //drawInputTrainglesUsingPaths(context);
-      // shows how to read input file, but not how to draw pixels
-    
-    //drawRandPixelsInInputBoxes(context);
-      // shows how to draw pixels and read input file
-    
-    //drawInputBoxesUsingPaths(context);
-      // shows how to read input file, but not how to draw pixels
 }
