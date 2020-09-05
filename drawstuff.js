@@ -142,7 +142,7 @@ function raycastEllipsoids(context) {
                 color.change( 0, 0, 0, 0 ); // Reset color
                 
                 var closestEll = null; // Closest intersecting ellipse
-                var closestDist = -1; // Distance to closest ellipse
+                var closestDist = null; // Distance to closest ellipse
 
                 // Check each ellipse for intersection
                 for ( var i = 0; i < input.length; i++ ) {
@@ -152,13 +152,13 @@ function raycastEllipsoids(context) {
                                     {x: x, y: y, z: 0 }, eye, 
                                     wcanvas, hcanvas );
                     if ( distToEll != null && distToEll > 0 ) {
-                        if ( closestDist == -1 || distToEll < closestDist ) {
+                        if ( closestDist == null || distToEll < closestDist ) {
                             closestDist = distToEll;
                             closestEll = ellipse;
                         }
                     }
                 }
-                if ( !closestEll ) { // No intersection, use default color
+                if ( closestEll == null ) { // No intersection, use default color
                     drawPixel( imagedata, x, y, color );
                 } else { // Use color of closest ellipse
                     color.change (
@@ -182,9 +182,12 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
 
     // a term
     var D = { 
-        x: pixel.x / wcanvas - eye.x,
-        y: pixel.y / hcanvas - eye.y,
-        z: pixel.z - eye.z };
+        x: (pixel.x / wcanvas) - eye.x,
+        y: (pixel.y / hcanvas) - eye.y,
+        z: (pixel.z - eye.z) };
+
+    // console.log("eye = ", eye.x, ", ", eye.y, ", ", eye.z);
+    // console.log("D = ", D.x, ", ", D.y, ", ", D.z);
     var DdivA = norm( { 
         x: D.x / ellipse.a,
         y: D.y / ellipse.b,
@@ -195,10 +198,10 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     var cx = ellipse.x;
     var cy = ellipse.y;
     var cz = 0;
-    var ElessCdivA = norm ( {
+    var ElessCdivA = {
         x: ( eye.x - cx ) / ellipse.a,
         y: ( eye.y - cy ) / ellipse.b,
-        z: ( eye.z - cz ) / ellipse.c } );
+        z: ( eye.z - cz ) / ellipse.c };
     var doubleDdivA = { x: 2 * DdivA.x, y: 2 * DdivA.y, z: 2 * DdivA.z };
     var quadraticB = dot( doubleDdivA, ElessCdivA );
     var quadraticC = dot( ElessCdivA, ElessCdivA ) - 1;
@@ -206,6 +209,11 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     var discriminant = Math.pow( quadraticB, 2 ) - 4 * quadraticA * quadraticC;
     var t = 0;
     var intersection = 0;
+
+    if ( pixel.x == 1 && pixel.y == 1 ) {
+        console.log("discriminant = ", discriminant, "; ", "center = ", ellipse.x, ", ", ellipse.y, ", ", ellipse.z);
+        console.log("E-C/A = ", ElessCdivA);
+    }
 
     if ( discriminant < 0 ) { // No intersection
         return null;
