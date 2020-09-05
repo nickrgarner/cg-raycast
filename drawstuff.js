@@ -139,7 +139,7 @@ function raycastEllipsoids(context) {
         // Iterate through pixels in canvas
         for ( var x = 0; x < wcanvas; x++ ) {
             for ( var y = 0; y < hcanvas; y++ ) {
-                color.change( 0, 0, 0, 0 ); // Reset color
+                color.change( 0, 0, 0, 255 ); // Reset color
                 
                 var closestEll = null; // Closest intersecting ellipse
                 var closestDist = null; // Distance to closest ellipse
@@ -183,7 +183,7 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     // a term
     var D = { 
         x: (pixel.x / wcanvas) - eye.x,
-        y: (pixel.y / hcanvas) - eye.y,
+        y: (1 - pixel.y / hcanvas) - eye.y,
         z: (pixel.z - eye.z) };
 
     // console.log("eye = ", eye.x, ", ", eye.y, ", ", eye.z);
@@ -197,7 +197,7 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     // b and c terms
     var cx = ellipse.x;
     var cy = ellipse.y;
-    var cz = 0;
+    var cz = ellipse.z;
     var ElessCdivA = {
         x: ( eye.x - cx ) / ellipse.a,
         y: ( eye.y - cy ) / ellipse.b,
@@ -210,10 +210,12 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     var t = 0;
     var intersection = 0;
 
-    if ( pixel.x == 1 && pixel.y == 1 ) {
-        console.log("discriminant = ", discriminant, "; ", "center = ", ellipse.x, ", ", ellipse.y, ", ", ellipse.z);
-        console.log("E-C/A = ", ElessCdivA);
-    }
+    // if ( pixel.x == 1 && pixel.y == 1 ) {
+    //     console.log("discriminant = ", discriminant, "; ", "center = ", ellipse.x, ", ", ellipse.y, ", ", ellipse.z);
+    //     console.log("A = ", ellipse.a, ", ", ellipse.b, ", ", ellipse.c);
+    //     console.log("E - C = ", eye.x - ellipse.x, ", ", eye.y - ellipse.y, ", ", eye.z - ellipse.z);
+    //     console.log("E-C/A = ", ElessCdivA);
+    // }
 
     if ( discriminant < 0 ) { // No intersection
         return null;
