@@ -126,10 +126,12 @@ function raycastEllipsoids(context) {
     const PIXEL_DENSITY = 0.1;
     var numCanvasPixels = (wcanvas * hcanvas) * PIXEL_DENSITY;
 
-    // Eye/view coords
+    // Eye/view/light coords
     var eye = {x:0.5, y:0.5, z:-0.5};
     var lookup = {x:0, y:1, z:0};
     var lookat = {x:0, y:0, z:1};
+    var light = {x: -0.5, y: 1.5, z: -0.5};
+    var lightColor = {ambient: 1, diffuse: 1, specular: 1};
 
     // Init color
     var color = new Color(0,0,0,0);
@@ -142,6 +144,7 @@ function raycastEllipsoids(context) {
                 color.change( 0, 0, 0, 255 ); // Reset color
                 var pixel = {x: x, y: y, z: 0}; // Set pixel
                 
+                var closestIntersection = null; // Point of intersection on closest ellipse
                 var closestEll = null; // Closest intersecting ellipse
                 var closestDist = null; // Distance to closest ellipse
 
@@ -149,19 +152,36 @@ function raycastEllipsoids(context) {
                 for ( var i = 0; i < input.length; i++ ) {
                     ellipse = input[ i ];
                     // Check intersection, update closest ellipse if appropriate
-                    var intersection = checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas );
+                    var t = checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas );
+                    var D = { 
+                        x: (pixel.x / wcanvas) - eye.x,
+                        y: (1 - pixel.y / hcanvas) - eye.y,
+                        z: (pixel.z - eye.z) };
+                    var intersection = { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t}
                     if ( intersection != null ) {
-                        var distToEll = getDistance( pixel, intersection );
+                        var distToEll = t;
                         if ( distToEll > 0 &&
                             ( closestDist == null || distToEll < closestDist ) ) {
                                 closestDist = distToEll;
                                 closestEll = ellipse;
+                                closestIntersection = intersection
                         }
                     }
                 }
                 if ( closestEll == null ) { // No intersection, use default color
                     drawPixel( imagedata, x, y, color );
                 } else { // Use color of closest ellipse
+                    // var BPcolor = getBPColor( closestEll, closestIntersection, eye, light, lightColor );
+                    // color.change (
+                    //     BPcolor[0] * 255,
+                    //     BPcolor[1] * 255,
+                    //     BPcolor[2] * 255,
+                    //     255);
+                    // for ( var c in color ) {
+                    //     if ( color[c] > 255 ) {
+                    //         console.log( c );
+                    //     }
+                    // }
                     color.change (
                         closestEll.diffuse[0] * 255,
                         closestEll.diffuse[1] * 255,
@@ -175,7 +195,7 @@ function raycastEllipsoids(context) {
     }
 }
 
-// Returns distance if ray intersects ellipse, null otherwise
+// Returns t if ray intersects ellipse, null otherwise
 function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     // Calculate discriminant of quadratic equation: sqrt( b^2 - 4ac )
     // a = dot( D/A, D/A ), b = 2 * dot( D/A, E - C )
@@ -207,7 +227,6 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
     // discriminant
     var discriminant = Math.pow( quadraticB, 2 ) - 4 * quadraticA * quadraticC;
     var t = 0;
-    var intersection = 0;
 
     if ( discriminant < 0 ) { // No intersection
         return null;
@@ -226,18 +245,41 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
         }
     }
 
-    // Calculate intersection point, return
-    return { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t};
+    // return { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t};
+    return t;
 }
 
 // Calculate and return Blinn-Phong color
-function getBPColor( ellipse, intersection, light, wcanvas, hcanvas ) {
+function getBPColor( ellipse, intersection, eye, light, lightColor ) {
     // Get normal vector, normalize
-    var normal = {
+    var normal = norm ( {
         x: 2 * (intersection.x - ellipse.x) / Math.pow(ellipse.a, 2),
         y: 2 * (intersection.y - ellipse.y) / Math.pow(ellipse.b, 2),
-        z: 2 * (intersection.z - ellipse.z) / Math.pow(ellipse.c, 2) };
-    var normal = norm( normal );
+        z: 2 * (intersection.z - ellipse.z) / Math.pow(ellipse.c, 2) } );
+    
+    // Get half vector
+    light = norm( {
+        x: intersection.x - light.x,
+        y: intersection.y - light.y,
+        z: intersection.z - light.z} );
+    var V = norm( {
+        x: intersection.x - eye.x,
+        y: intersection.y - eye.y,
+        z: intersection.z - eye.z} );
+    var half = norm( {
+        x: light.x + V.x,
+        y: light.y + V.y,
+        z: light.z + V.z} );
+
+    // Calculate RGB color components
+    var color = [];
+    for (var i = 0; i < 3; i++) {
+        color[i] = ellipse.ambient[i] * lightColor.ambient; // ambient term
+        color[i] += ellipse.diffuse[i] * lightColor.diffuse * dot( normal, light ); // diffuse term
+        color[i] += ellipse.specular[i] * lightColor.specular * Math.pow( dot( normal, half ), ellipse.n ); // specular term
+    }
+
+    return color;
 }
 
 // Returns dot product of two 3D vectors
