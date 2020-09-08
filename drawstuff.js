@@ -131,7 +131,7 @@ function raycastEllipsoids(context) {
     var lookup = {x:0, y:1, z:0};
     var lookat = {x:0, y:0, z:1};
     var light = {x: -0.5, y: 1.5, z: -0.5};
-    var lightColor = {ambient: 255, diffuse: 255, specular: 255};
+    var lightColor = {ambient: 1, diffuse: 1, specular: 1};
 
     // Init color
     var color = new Color(0,0,0,0);
@@ -172,9 +172,9 @@ function raycastEllipsoids(context) {
                     // if (x > 275 && x < 325 && y > 265 && y < 315) {
                     var BPcolor = getBPColor( closestEll, closestIntersection, eye, light, lightColor );
                     color.change (
-                        BPcolor[0],
-                        BPcolor[1],
-                        BPcolor[2],
+                        BPcolor[0] * 255,
+                        BPcolor[1] * 255,
+                        BPcolor[2] * 255,
                         255);
                     // }
                     // color.change (
@@ -253,14 +253,14 @@ function getBPColor( ellipse, intersection, eye, light, lightColor ) {
         z: (2 * (intersection.z - ellipse.z)) / Math.pow(ellipse.c, 2) } );
     
     // Get half vector
-    light = {
-        x: intersection.x - light.x,
-        y: intersection.y - light.y,
-        z: intersection.z - light.z};
-    var V = {
-        x: intersection.x - eye.x,
-        y: intersection.y - eye.y,
-        z: intersection.z - eye.z};
+    light = norm( {
+        x: light.x - intersection.x,
+        y: light.y - intersection.y,
+        z: light.z - intersection.z} );
+    var V = norm( {
+        x: eye.x - intersection.x,
+        y: eye.y - intersection.y,
+        z: eye.z - intersection.z} );
     var half = norm( {
         x: light.x + V.x,
         y: light.y + V.y,
@@ -272,12 +272,12 @@ function getBPColor( ellipse, intersection, eye, light, lightColor ) {
         color[i] = ellipse.ambient[i] * lightColor.ambient; // ambient term
         color[i] += ellipse.diffuse[i] * lightColor.diffuse * dot( normal, light ); // diffuse term
         color[i] += ellipse.specular[i] * lightColor.specular * Math.pow( dot( normal, half ), ellipse.n ); // specular term
-        color[i] = -color[i];
         
         // Clamp color bounds
-        if ( color[i] > 255 ) {
-            color[i] = 255;
-        } else if ( color[i] < 0 ) {
+        if ( color[i] > 1 ) {
+            color[i] = 1;
+        } 
+        else if ( color[i] < 0 ) {
             color[i] = 0;
         }
     }
