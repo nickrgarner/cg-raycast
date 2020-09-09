@@ -1,6 +1,3 @@
-// TODO: Check raycasting syntax, add illumination
-// Notes: Unsure about intersection calculations, pixel interpolation.
-
 /**
  * @file drawstuff.js
  * @author Nick Garner, Ben Watson
@@ -74,27 +71,6 @@ function drawPixel(imagedata,x,y,color) {
         console.log(e);
     }
 } // end drawPixel
-    
-// draw random pixels
-function drawRandPixels(context) {
-    var c = new Color(0,0,0,0); // the color at the pixel: black
-    var w = context.canvas.width;
-    var h = context.canvas.height;
-    var imagedata = context.createImageData(w,h);
-    const PIXEL_DENSITY = 0.01;
-    var numPixels = (w*h)*PIXEL_DENSITY; 
-    
-    // Loop over 1% of the pixels in the image
-    for (var x=0; x<numPixels; x++) {
-        c.change(Math.random()*255,Math.random()*255,
-            Math.random()*255,255); // rand color
-        drawPixel(imagedata,
-            Math.floor(Math.random()*w),
-            Math.floor(Math.random()*h),
-                c);
-    } // end for x
-    context.putImageData(imagedata, 0, 0);
-} // end draw random pixels
 
 // get the input ellipsoids from the standard class URL
 function getInputEllipsoids() {
@@ -117,6 +93,8 @@ function getInputEllipsoids() {
         return JSON.parse(httpReq.response);
 } // end get input ellipsoids
 
+// Checks for object intersection along eye-pixel ray and colors pixel
+// with Blinn-Phong illumination of object if found.
 function raycastEllipsoids(context) {
     // Get input, setup canvas
     var input = getInputEllipsoids();
@@ -169,14 +147,12 @@ function raycastEllipsoids(context) {
                 if ( closestEll == null ) { // No intersection, use default color
                     drawPixel( imagedata, x, y, color );
                 } else { // Use color of closest ellipse
-                    // if (x > 275 && x < 325 && y > 265 && y < 315) {
                     var BPcolor = getBPColor( closestEll, closestIntersection, eye, light, lightColor );
                     color.change (
                         BPcolor[0] * 255,
                         BPcolor[1] * 255,
                         BPcolor[2] * 255,
                         255);
-                    // }
                     // color.change (
                     //     closestEll.diffuse[0] * 255,
                     //     closestEll.diffuse[1] * 255,
@@ -240,7 +216,6 @@ function checkIntersection( ellipse, pixel, eye, wcanvas, hcanvas ) {
         }
     }
 
-    // return { x: eye.x + D.x * t, y: eye.y + D.y * t, z: eye.z + D.z * t};
     return t;
 }
 
@@ -282,10 +257,6 @@ function getBPColor( ellipse, intersection, eye, light, lightColor ) {
         }
     }
 
-    // if (ellipse.n == 7) {
-    //     // console.log(normal, half, dot(normal, half));
-    // }
-
     return color;
 }
 
@@ -299,14 +270,6 @@ function norm( vec1 ) {
     var magnitude = Math.sqrt( Math.pow( vec1.x, 2 ) + Math.pow( vec1.y, 2 ) + Math.pow( vec1.z, 2 ) );
     return { x: vec1.x / magnitude, y: vec1.y / magnitude, z: vec1.z / magnitude };
 }
-
-// // Returns distance between pixel and intersection point
-// function getDistance( pixel, intersection ) {
-//     return Math.sqrt(
-//         Math.pow( intersection.x - pixel.x, 2 ) +
-//         Math.pow( intersection.y - pixel.y, 2 ) +
-//         Math.pow( intersection.z - pixel.z, 2 ) );
-// }
 
 /* main -- here is where execution begins after window load */
 
